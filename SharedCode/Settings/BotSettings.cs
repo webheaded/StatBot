@@ -47,6 +47,26 @@ namespace StatBot.Settings
         }
 
         /// <summary>
+        /// Gets warnings for path settings that contain backslashes when not running on Windows.
+        /// </summary>
+        /// <returns>The warnings.</returns>
+        public IEnumerable<string> GetPathWarnings()
+        {
+            if (OperatingSystem.IsWindows())
+                yield break;
+            var paths = new Dictionary<string, string>
+            {
+                { "mIRCStats:Path", mIRCStats.Path },
+                { "mIRCStats:GeneratorFile", mIRCStats.GeneratorFile },
+                { "mIRCStats:NicksFile", mIRCStats.NicksFile },
+                { "Application:LogPath", Application.LogPath },
+                { "Application:NicksFileManual", Application.NicksFileManual }
+            };
+            foreach (var path in paths.Where(p => p.Value?.Contains('\\') == true))
+                yield return $"Warning: {path.Key} contains '\\' ({path.Value}). On Linux, use '/' in paths.";
+        }
+
+        /// <summary>
         /// Gets the discord.
         /// </summary>
         /// <value>The discord.</value>
@@ -81,6 +101,7 @@ namespace StatBot.Settings
             ShowDiscrim = configuration.GetValue<bool>("Application:ShowDiscrim");
             ShowAvatar = configuration.GetValue<bool>("Application:ShowAvatar");
             NicksFileManual = configuration.GetValue<string>("Application:NicksFileManual");
+            LogPath = configuration.GetValue<string>("Application:LogPath");
             DeadChatAfter = configuration.GetValue<int>("Application.DeadChatAfter");
         }
 
@@ -119,6 +140,11 @@ namespace StatBot.Settings
         /// </summary>
         /// <value>The nicks file manual.</value>
         public string NicksFileManual { get; set; }
+        /// <summary>
+        /// Gets the folder the guild log folders are created in.
+        /// </summary>
+        /// <value>The log path.</value>
+        public string LogPath { get; set; }
         /// <summary>
         /// Gets or sets the time after which the chat is considered dead.
         /// </summary>

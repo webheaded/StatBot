@@ -145,7 +145,7 @@ namespace StatBot.Handlers
             removeOverrideUsernameCommand = botSettings.Discord.Commands.AdminCommands.RemoveOverrideUsernameCommand;
             createOldUserCommand = botSettings.Discord.Commands.AdminCommands.CreateOldUserCommand;
             commandPrefix = botSettings.Discord.Commands.Prefix;
-            nickFile = $"{botSettings.mIRCStats.Path}\\{botSettings.mIRCStats.NicksFile}";
+            nickFile = Path.Combine(botSettings.mIRCStats.Path, botSettings.mIRCStats.NicksFile);
             nickSection = botSettings.mIRCStats.NickSection;
             useCommandInclude = !string.IsNullOrEmpty(commandInclude);
             useCommandExclude = !string.IsNullOrEmpty(commandExclude);

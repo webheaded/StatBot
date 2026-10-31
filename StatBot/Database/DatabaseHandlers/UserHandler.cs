@@ -44,7 +44,7 @@ namespace StatBot.Database.DatabaseHandlers
             {
 
                 string command = $"REPLACE INTO Users(Id, Username, Discrim, AvatarUri, IsBot, OverrideName) VALUES({user.Id},'{user.Username}','{user.Discrim}','{user.AvatarUri}',{user.IsBot}, '{user.OverrideName}')";
-                using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+                using (var connection = new SqliteConnection(DatabaseHandler.ConnectionString))
                 {
                     connection.Open();
                     using (var cmd = new SqliteCommand(command, connection))
@@ -64,7 +64,7 @@ namespace StatBot.Database.DatabaseHandlers
         public static void ExcludeFromStats(ulong userId, bool exclude)
         {
             string command = $"UPDATE Users SET IsExcludedFromStats = {exclude} WHERE Id={userId}";
-            using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+            using (var connection = new SqliteConnection(DatabaseHandler.ConnectionString))
             {
                 connection.Open();
                 using (var cmd = new SqliteCommand(command, connection))
@@ -82,7 +82,7 @@ namespace StatBot.Database.DatabaseHandlers
         public static void OverrideUsername(ulong userId, string username)
         {
             string command = $"UPDATE Users SET OverrideName = '{username}' WHERE Id={userId}";
-            using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+            using (var connection = new SqliteConnection(DatabaseHandler.ConnectionString))
             {
                 connection.Open();
                 using (var cmd = new SqliteCommand(command, connection))
@@ -106,7 +106,7 @@ namespace StatBot.Database.DatabaseHandlers
             {
                 string command = $"INSERT into OldUsers (Id, Username, Discrim, DateTimeChanged) " +
                     $"values ({userId},'{user[0]}','{user[1]}',DATETIME('now'))";
-                using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+                using (var connection = new SqliteConnection(DatabaseHandler.ConnectionString))
                 {
                     connection.Open();
                     using (var cmd = new SqliteCommand(command, connection))
@@ -126,7 +126,7 @@ namespace StatBot.Database.DatabaseHandlers
         {
             var users = new List<User>();
             string command = "SELECT * FROM Users;";
-            using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+            using (var connection = new SqliteConnection(DatabaseHandler.ConnectionString))
             {
                 connection.Open();
                 using (var cmd = new SqliteCommand(command, connection))
@@ -161,7 +161,7 @@ namespace StatBot.Database.DatabaseHandlers
         {
             List<OldUser> oldUsers = new List<OldUser>();
             string commandOldUsers = $"SELECT * FROM OldUsers WHERE Id = {id};";
-            using (var connection2 = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+            using (var connection2 = new SqliteConnection(DatabaseHandler.ConnectionString))
             {
                 connection2.Open();
                 using (var cmd2 = new SqliteCommand(commandOldUsers, connection2))

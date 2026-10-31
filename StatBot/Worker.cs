@@ -77,6 +77,8 @@ namespace StatBot
             _botSettings.VerifySettings();
             _logHandler = new LogHandler(_botSettings);
             _client = new DiscordSocketClient();
+            foreach (var warning in _botSettings.GetPathWarnings())
+                _logHandler.LogMessage(warning, _client);
             DatabaseHandler.CreateDatabase();
             DatabaseHandler.UpdateDatabase(_logHandler, _client);
             _messageHandler = new MessageHandler(_client, _botSettings, _logHandler);

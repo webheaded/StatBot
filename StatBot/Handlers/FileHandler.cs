@@ -41,6 +41,10 @@ namespace StatBot.Handlers
         /// The single log file
         /// </summary>
         static bool singleLogFile;
+        /// <summary>
+        /// The folder the guild log folders are created in
+        /// </summary>
+        static string logRoot;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FileHandler" /> class.
@@ -51,6 +55,7 @@ namespace StatBot.Handlers
             _botSettings = botSettings;
             loggingFileType = _botSettings.Application.LoggingFileName == "channelname";
             singleLogFile = _botSettings.Application.LoggingFileName == "single";
+            logRoot = string.IsNullOrEmpty(_botSettings.Application.LogPath) ? Directory.GetCurrentDirectory() : _botSettings.Application.LogPath;
         }
 
         /// <summary>
@@ -61,12 +66,12 @@ namespace StatBot.Handlers
         internal string CheckAndGetFilePath(SocketMessage message)
         {
             LogFile logFile = GetLogFile(message);
-            string target = Directory.GetCurrentDirectory() + logFile.Folder;
+            string target = Path.Combine(logRoot, logFile.Folder);
             if (!Directory.Exists(target))
             {
                 Directory.CreateDirectory(target);
             }
-            return target + logFile.FileName;
+            return Path.Combine(target, logFile.FileName);
         }
 
         /// <summary>
@@ -103,13 +108,14 @@ namespace StatBot.Handlers
                     Channel = channel,
                     Guild = guild,
                     FileName = fileName,
-                    Folder = "\\" + guild.Id + "\\"
+                    Folder = guild.Id.ToString()
                 };
                 logFiles.Add(logFile);
-                string file = Directory.GetCurrentDirectory() + logFile.Folder + logFile.FileName;
-                if (!Directory.Exists(Directory.GetCurrentDirectory() + logFile.Folder))
+                string folder = Path.Combine(logRoot, logFile.Folder);
+                string file = Path.Combine(folder, logFile.FileName);
+                if (!Directory.Exists(folder))
                 {
-                    Directory.CreateDirectory(Directory.GetCurrentDirectory() + logFile.Folder);
+                    Directory.CreateDirectory(folder);
                 }
                 using (StreamWriter text = File.AppendText(file))
                 {

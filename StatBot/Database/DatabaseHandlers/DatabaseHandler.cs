@@ -33,20 +33,28 @@ namespace StatBot.Database.DatabaseHandlers
         /// </summary>
         private static int databaseVersion = 1;
         /// <summary>
+        /// The database file
+        /// </summary>
+        internal const string DatabaseFile = "Database/Statbot.db";
+        /// <summary>
+        /// The database connection string
+        /// </summary>
+        internal const string ConnectionString = $"Data Source={DatabaseFile}";
+        /// <summary>
         /// Creates the database.
         /// </summary>
         internal static void CreateDatabase()
         {
-            if (!File.Exists("Database\\Statbot.db"))
+            if (!File.Exists(DatabaseFile))
             {
                 try
                 {
-                    new SqliteConnection("Data Source=Database\\Statbot.db");
+                    new SqliteConnection(ConnectionString);
                 }
                 catch { }
-                using var con = new SqliteConnection("Data Source=Database\\Statbot.db");
+                using var con = new SqliteConnection(ConnectionString);
                 con.Open();
-                var sqlScript = File.ReadAllText("Database\\Statbot.db.sql");
+                var sqlScript = File.ReadAllText("Database/Statbot.db.sql");
                 using (var cmd = new SqliteCommand(sqlScript, con))
                 {
                     cmd.ExecuteNonQuery();
@@ -64,11 +72,11 @@ namespace StatBot.Database.DatabaseHandlers
             long version = 0;
             try
             {
-                new SqliteConnection("Data Source=Database\\Statbot.db");
+                new SqliteConnection(ConnectionString);
             }
             catch { }
             string command = $"SELECT Version from Database";
-            using (var connection = new SqliteConnection("Data Source=Database\\Statbot.db;"))
+            using (var connection = new SqliteConnection(ConnectionString))
             {
                 connection.Open();
                 using (var cmd = new SqliteCommand(command, connection))
@@ -94,11 +102,11 @@ namespace StatBot.Database.DatabaseHandlers
         /// <param name="client">The client.</param>
         private static void UpdateVersion(long version, LogHandler logHandler, DiscordSocketClient client)
         {
-            using var con = new SqliteConnection($"Data Source=Database\\Statbot.db");
+            using var con = new SqliteConnection(ConnectionString);
             try
             {
                 con.Open();
-                var sqlScript = File.ReadAllText($"Database\\UpdateScripts\\{version}.sql");
+                var sqlScript = File.ReadAllText($"Database/UpdateScripts/{version}.sql");
                 using (var cmd = new SqliteCommand(sqlScript, con))
                 {
                     cmd.ExecuteNonQuery();

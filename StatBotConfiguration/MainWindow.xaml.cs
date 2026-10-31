@@ -87,6 +87,8 @@ namespace StatBotConfiguration
             ShowAvatarValue.IsChecked = appsettings.Application.ShowAvatar;
             NicksFileManualValue.Text = appsettings.Application.NicksFileManual;
             DeadChatAfterValue.Text = string.IsNullOrEmpty(appsettings.Application.DeadChatAfter.ToString()) ? "43200000" : appsettings.Application.DeadChatAfter.ToString();
+            LogPathValue.Text = appsettings.Application.LogPath;
+            LogPathBrowseButton.Click += LogPathBrowseButtonCommand;
         }
 
         private void SaveButtonCommand(object sender, RoutedEventArgs e)
@@ -124,6 +126,7 @@ namespace StatBotConfiguration
                 appsettings.Application.ShowAvatar = ShowAvatarValue.IsChecked ?? true;
                 appsettings.Application.NicksFileManual = NicksFileManualValue.Text;
                 appsettings.Application.DeadChatAfter = int.Parse(DeadChatAfterValue.Text);
+                appsettings.Application.LogPath = LogPathValue.Text;
                 string jsonString = JsonConvert.SerializeObject(appsettings, Formatting.Indented);
 #if DEBUG
             File.WriteAllTextAsync("appsettings.dev.json", jsonString);
@@ -146,6 +149,16 @@ namespace StatBotConfiguration
             CommonFileDialogResult result = dialog.ShowDialog();
             if (result == CommonFileDialogResult.Ok)
                 PathValue.Text = dialog.FileName;
+        }
+
+        private void LogPathBrowseButtonCommand(object sender, RoutedEventArgs e)
+        {
+            var dialog = new CommonOpenFileDialog();
+            dialog.IsFolderPicker = true;
+            dialog.InitialDirectory = LogPathValue.Text;
+            CommonFileDialogResult result = dialog.ShowDialog();
+            if (result == CommonFileDialogResult.Ok)
+                LogPathValue.Text = dialog.FileName;
         }
 
         private void LaunchGitHubSite(object sender, RoutedEventArgs e)

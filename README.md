@@ -26,6 +26,24 @@ Example batch script for combining multiple logs:
 > - copy "C:\Discord\StatBot\277418737798479872\the-toy-factory.log" "C:\Discord\StatBot\277418737798479872\general\2.log" /Y
 > - START /WAIT C:\Discord\StatBot\mircstats\mircstats.exe -cfg general.cfg -log "C:\Discord\StatBot\277418737798479872\general\\*.log" -html Html\general.html
 
+The logs are stored in a folder per server (the server id, 277418737798479872 in the example above). By default these folders are created in the folder StatBot runs from. Set LogPath in appsettings.json to store them somewhere else.
+
+# Running on Linux
+StatBot runs on Linux as well as Windows. The configuration tool (StatBotConfiguration) is Windows only, so on Linux edit appsettings.json by hand.
+
+1. Install the [.NET 8 runtime](https://learn.microsoft.com/dotnet/core/install/linux).
+2. Build it: `dotnet publish StatBot/StatBot.csproj -c Release -r linux-x64 --self-contained false -o ~/statbot`
+3. Configure `~/statbot/appsettings.json`. Use Linux paths (e.g. `/home/user/statbot/mircstats`), not Windows paths with backslashes. StatBot shows a warning at startup if a path contains a backslash.
+4. Run it from its folder, since the database is stored relative to it: `cd ~/statbot && dotnet StatBot.dll`
+
+mIRCStats is a Windows program, but it runs under [Wine](https://www.winehq.org/). To let StatBot generate the stats, point GeneratorFile to an executable script (`chmod +x generate-stats.sh`), for example:
+
+```sh
+#!/bin/sh
+cd /home/user/statbot/mircstats
+wine mircstats.exe -cfg general.cfg -log "Z:\\home\\user\\statbot\\277418737798479872\\general.log" -html Html/general.html
+```
+
 
 # Notes
 Want to help or need help? Join the discord server https://discord.gg/SFYVQNE , create an issue or create a pull request.

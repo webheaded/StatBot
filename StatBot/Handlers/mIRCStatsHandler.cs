@@ -119,12 +119,13 @@ namespace StatBot.Handlers
                 }
             }
 
-            using (StreamWriter text = File.CreateText($"{_botSettings.mIRCStats.Path}\\{_botSettings.mIRCStats.NicksFile}"))
+            using (StreamWriter text = File.CreateText(Path.Combine(_botSettings.mIRCStats.Path, _botSettings.mIRCStats.NicksFile)))
             {
                 text.WriteLine(sb);
-                if (File.Exists($"{_botSettings.mIRCStats.Path}\\{_botSettings.Application.NicksFileManual}"))
+                string nicksFileManual = Path.Combine(_botSettings.mIRCStats.Path, _botSettings.Application.NicksFileManual);
+                if (File.Exists(nicksFileManual))
                 {
-                    text.WriteLine(File.ReadAllText($"{_botSettings.mIRCStats.Path}\\{_botSettings.Application.NicksFileManual}"));
+                    text.WriteLine(File.ReadAllText(nicksFileManual));
                 }
             }
 
