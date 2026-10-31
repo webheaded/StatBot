@@ -75,19 +75,15 @@ namespace StatBot.Database.DatabaseHandlers
                 new SqliteConnection(ConnectionString);
             }
             catch { }
-            string command = $"SELECT Version from Database";
+            // MAX: the shipped database has a version 0 row, and update scripts insert a row per version.
+            string command = $"SELECT MAX(Version) from Database";
             using (var connection = new SqliteConnection(ConnectionString))
             {
                 connection.Open();
                 using (var cmd = new SqliteCommand(command, connection))
                 {
-                    var reader = cmd.ExecuteReader();
-                    if (reader != null &&
-                        reader.HasRows)
-                    {
-                        reader.Read();
-                        version = (long)reader[0];
-                    }
+                    if (cmd.ExecuteScalar() is long storedVersion)
+                        version = storedVersion;
                 }
             }
             for (long i = version; i < databaseVersion; i++)
@@ -112,6 +108,16 @@ namespace StatBot.Database.DatabaseHandlers
                     cmd.ExecuteNonQuery();
 
                 }
+            }
+            catch (SqliteException e) when (e.Message.Contains("duplicate column name"))
+            {
+                // The shipped database already contains the column, so only the version is missing.
+                using (var cmd = new SqliteCommand("INSERT INTO [Database] (Version) VALUES (@version)", con))
+                {
+                    cmd.Parameters.AddWithValue("@version", version);
+                    cmd.ExecuteNonQuery();
+                }
+                logHandler.LogMessage($"Database upgrade {version} was already applied.", client);
             }
             catch (Exception e)
             {

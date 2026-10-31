@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 namespace StatBot.Handlers
 {
     /// <summary>
-    /// Class ConnectionHandler.
+    /// Class ConnectionHandler. Reports connection changes; Discord.Net reconnects by itself.
     /// </summary>
     internal class ConnectionHandler
     {
@@ -29,11 +29,6 @@ namespace StatBot.Handlers
         /// The client
         /// </summary>
         DiscordSocketClient _client;
-
-        /// <summary>
-        /// The is reconnecting
-        /// </summary>
-        bool isReconnecting = false;
 
         /// <summary>
         /// The log handler
@@ -49,13 +44,17 @@ namespace StatBot.Handlers
         /// </summary>
         MessageHandler _messageHandler;
         /// <summary>
-        /// The disconnect date time
+        /// The time the connection was lost, or null while connected
         /// </summary>
-        DateTime _disconnectDateTime;
+        DateTime? _disconnectDateTime;
         /// <summary>
-        /// The dead chat thread
+        /// Whether the client has been ready before
         /// </summary>
-        Thread deadChatThread;
+        bool _hasBeenReady;
+        /// <summary>
+        /// Cancels the running dead chat check
+        /// </summary>
+        CancellationTokenSource _deadChatCancellation;
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionHandler" /> class.
         /// </summary>
@@ -72,99 +71,93 @@ namespace StatBot.Handlers
         }
 
         /// <summary>
-        /// Handles the event when the client disconnects.
+        /// Handles the event when the client is ready for the first time.
         /// </summary>
-        /// <param name="arg">The argument.</param>
-        public async Task Client_Disconnected(Exception arg)
+        public Task Client_Ready()
         {
-            if (!isReconnecting)
+            if (!_hasBeenReady)
             {
-                try
-                {
-                    if (deadChatThread != null)
-                    {
-                        deadChatThread.Interrupt();
-                        deadChatThread.Join();
-                    }
-                }
-                catch { }
-                isReconnecting = true;
-                var disconnectTime = DateTime.Now;
-                _disconnectDateTime = disconnectTime;
-                _ = Task.Run(() => LogDisconnect(disconnectTime)).ConfigureAwait(false);
-                while (_client.ConnectionState == ConnectionState.Disconnected ||
-                    _client.ConnectionState == ConnectionState.Disconnecting)
-                {
-                    var task = ReConnect();
-                    if (await Task.WhenAny(task, Task.Delay(50000)) == task)
-                    {
-                        if ((_client.ConnectionState == ConnectionState.Connecting))
-                        {
-                            System.Threading.Thread.Sleep(10000);
-                        }
-                        if ((_client.ConnectionState == ConnectionState.Connected))
-                        {
-                            isReconnecting = false;
-                            if (DateTime.Now >= disconnectTime.AddMilliseconds(_botSettings.Application.NotificationDelay))
-                                _logHandler.LogMessage($"Reconnected with the server at {DateTime.Now}.", _client);
-                            break;
-                        }
-                    }
-                    System.Threading.Thread.Sleep(5000);
-                }
-                if (_botSettings.Application.DeadChatAfter > 0)
-                    deadChatThread = new Thread(new ThreadStart(CheckDeadChat));
+                _hasBeenReady = true;
+                _logHandler.LogMessage($"Connected to the server at {DateTime.Now}.", _client);
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Checks if the chat has gone dead after a disconnect.
+        /// Handles the event when the client disconnects.
         /// </summary>
-        public async void CheckDeadChat()
+        /// <param name="exception">The reason for the disconnect.</param>
+        public Task Client_Disconnected(Exception exception)
+        {
+            _deadChatCancellation?.Cancel();
+            if (_disconnectDateTime == null)
+            {
+                var disconnectTime = DateTime.Now;
+                _disconnectDateTime = disconnectTime;
+                _ = Task.Run(() => LogDisconnectAsync(disconnectTime));
+            }
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Handles the event when the client (re)connects.
+        /// </summary>
+        public Task Client_Connected()
+        {
+            if (_disconnectDateTime is DateTime disconnectTime)
+            {
+                _disconnectDateTime = null;
+                if (DateTime.Now >= disconnectTime.AddMilliseconds(_botSettings.Application.NotificationDelay))
+                    _logHandler.LogMessage($"Reconnected with the server at {DateTime.Now}.", _client);
+                if (_botSettings.Application.DeadChatAfter > 0)
+                {
+                    _deadChatCancellation = new CancellationTokenSource();
+                    _ = CheckDeadChatAsync(DateTime.Now, _deadChatCancellation.Token);
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Restarts the connection if no message arrives within DeadChatAfter ms after reconnecting.
+        /// </summary>
+        /// <param name="reconnectTime">The reconnect time.</param>
+        /// <param name="cancellationToken">Cancelled when the connection is lost again.</param>
+        private async Task CheckDeadChatAsync(DateTime reconnectTime, CancellationToken cancellationToken)
         {
             try
             {
-                var deadChatThreadDateTime = DateTime.Now;
-                Thread.Sleep(_botSettings.Application.DeadChatAfter);
-                if (_disconnectDateTime < deadChatThreadDateTime &&
-                    _messageHandler.LastMessage < _disconnectDateTime.AddMilliseconds(_botSettings.Application.DeadChatAfter))
-                {
-                    _logHandler.LogMessage("Dead chat after disconnect detected.", _client);
-                }
+                await Task.Delay(_botSettings.Application.DeadChatAfter, cancellationToken);
             }
-            catch { }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+            if (_messageHandler.LastMessage >= reconnectTime)
+                return;
+            _logHandler.LogMessage("Dead chat after disconnect detected. Restarting the connection.", _client);
+            try
+            {
+                // Same client, so the event handlers stay attached.
+                await _client.StopAsync();
+                await _client.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                _logHandler.LogMessage($"Restarting the connection failed: {ex.Message}", _client);
+            }
         }
 
         /// <summary>
-        /// Logs the disconnect.
+        /// Logs the disconnect if the connection isn't back within NotificationDelay ms.
         /// </summary>
         /// <param name="disconnectTime">The disconnect time.</param>
-        public void LogDisconnect(DateTime disconnectTime)
+        private async Task LogDisconnectAsync(DateTime disconnectTime)
         {
-            if (_botSettings.Application.NotificationDelay <= 0)
-            {
+            if (_botSettings.Application.NotificationDelay > 0)
+                await Task.Delay(_botSettings.Application.NotificationDelay);
+            if (_client.ConnectionState != ConnectionState.Connected)
                 _logHandler.LogMessage($"The connection to the server has been lost at {disconnectTime}.", _client);
-            }
-            else
-            {
-                Thread.Sleep(_botSettings.Application.NotificationDelay);
-                if ((_client.ConnectionState != ConnectionState.Connected))
-                {
-                    _logHandler.LogMessage($"The connection to the server has been lost at {disconnectTime}.", _client);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Attempts to reconnect to the server.
-        /// </summary>
-        public async Task ReConnect()
-        {
-            _client = new DiscordSocketClient();
-
-            await _client.LoginAsync(TokenType.Bot, _botSettings.Discord.Token);
-            await _client.StartAsync();
-            Thread.Sleep(10000);
         }
     }
 }

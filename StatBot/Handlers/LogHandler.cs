@@ -75,7 +75,11 @@ namespace StatBot.Handlers
                     {
                         try
                         {
-                            ((ISocketMessageChannel)client.GetChannel(channelId)).SendMessageAsync(message);
+                            var channel = client.GetChannel(channelId);
+                            // Not cached yet right after a reconnect; skip instead of treating the id as invalid.
+                            if (channel == null)
+                                break;
+                            ((ISocketMessageChannel)channel).SendMessageAsync(message);
                         }
                         catch
                         {

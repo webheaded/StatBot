@@ -102,7 +102,7 @@ namespace StatBot.Settings
             ShowAvatar = configuration.GetValue<bool>("Application:ShowAvatar");
             NicksFileManual = configuration.GetValue<string>("Application:NicksFileManual");
             LogPath = configuration.GetValue<string>("Application:LogPath");
-            DeadChatAfter = configuration.GetValue<int>("Application.DeadChatAfter");
+            DeadChatAfter = configuration.GetValue<int>("Application:DeadChatAfter");
         }
 
         /// <summary>

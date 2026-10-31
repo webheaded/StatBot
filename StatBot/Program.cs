@@ -33,18 +33,17 @@ namespace StatBot
         /// Starts the application
         /// </summary>
         /// <returns>The task.</returns>
-        public Task MainAsync()
+        public async Task MainAsync()
         {
             Console.WriteLine("Starting...");
             var host = CreateDefaultBuilder().Build();
             using IServiceScope serviceScope = host.Services.CreateScope();
             IServiceProvider provider = serviceScope.ServiceProvider;
             var workerInstance = provider.GetRequiredService<Worker>();
-            workerInstance.DoWork();
+            await workerInstance.DoWorkAsync();
             var mircStatsGeneratorInstance = provider.GetRequiredService<mIRCStatsGenerator>();
             mircStatsGeneratorInstance.DoWork();
             host.Run();
-            return Task.CompletedTask;
         }
 
         /// <summary>

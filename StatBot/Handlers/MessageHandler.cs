@@ -174,7 +174,7 @@ namespace StatBot.Handlers
                     Console.WriteLine($"#{message.Channel} - {textMessage}");
                 }
             }
-            return null;
+            return Task.CompletedTask;
         }
 
         /// <summary>

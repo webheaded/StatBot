@@ -71,23 +71,39 @@ namespace StatBot
         /// <summary>
         /// Does the work.
         /// </summary>
-        public void DoWork()
+        public async Task DoWorkAsync()
         {
             _botSettings = new BotSettings(_configuration);
             _botSettings.VerifySettings();
             _logHandler = new LogHandler(_botSettings);
-            _client = new DiscordSocketClient();
+            _client = new DiscordSocketClient(new DiscordSocketConfig
+            {
+                // MessageContent has to be requested explicitly, or message text arrives empty.
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMessages | GatewayIntents.MessageContent
+            });
             foreach (var warning in _botSettings.GetPathWarnings())
                 _logHandler.LogMessage(warning, _client);
             DatabaseHandler.CreateDatabase();
             DatabaseHandler.UpdateDatabase(_logHandler, _client);
             _messageHandler = new MessageHandler(_client, _botSettings, _logHandler);
             _connectionHandler = new ConnectionHandler(_client, _logHandler, _botSettings, _messageHandler);
+            _client.Log += LogDiscordMessage;
             _client.MessageReceived += _messageHandler.MessageReceived;
+            _client.Ready += _connectionHandler.Client_Ready;
+            _client.Connected += _connectionHandler.Client_Connected;
             _client.Disconnected += _connectionHandler.Client_Disconnected;
-            _client.LoginAsync(TokenType.Bot, _botSettings.Discord.Token);
-            _client.StartAsync();
-            _logHandler.LogMessage($"Connected to the server at {DateTime.Now}.", _client);
+            await _client.LoginAsync(TokenType.Bot, _botSettings.Discord.Token);
+            await _client.StartAsync();
+        }
+
+        /// <summary>
+        /// Writes the Discord.Net log messages to the console.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        private static Task LogDiscordMessage(LogMessage message)
+        {
+            Console.WriteLine(message.ToString());
+            return Task.CompletedTask;
         }
     }
 }
