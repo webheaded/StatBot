@@ -137,7 +137,7 @@ namespace StatBot.Handlers
                         }
                         else
                         {
-                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author)} - {message.Embeds.FirstOrDefault().Url}";
+                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author, message.MentionedUsers)} - {message.Embeds.FirstOrDefault().Url}";
                         }
                     }
                     else if (message.Attachments != null &&
@@ -150,7 +150,7 @@ namespace StatBot.Handlers
                         }
                         else
                         {
-                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author)} - {message.Attachments.FirstOrDefault().Url}";
+                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author, message.MentionedUsers)} - {message.Attachments.FirstOrDefault().Url}";
                         }
                     }
                     else if (message.Stickers != null &&
@@ -163,12 +163,12 @@ namespace StatBot.Handlers
                         }
                         else
                         {
-                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author)} - {message.Stickers.FirstOrDefault().GetStickerUrl()}";
+                            textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author, message.MentionedUsers)} - {message.Stickers.FirstOrDefault().GetStickerUrl()}";
                         }
                     }
                     else
                     {
-                        textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author)}";
+                        textMessage = $"[{message.Timestamp.ToString("yyyy-MM-dd HH':'mm':'ss")}] <{message.Author.Username.Replace(' ', '_')}#{message.Author.Discriminator}> {HandleMessage(message.Content, $"{message.Author.Username}#{message.Author.Discriminator}", message.Channel, message.Author, message.MentionedUsers)}";
                     }
                     text.WriteLine(textMessage);
                     Console.WriteLine($"#{message.Channel} - {textMessage}");
@@ -184,8 +184,9 @@ namespace StatBot.Handlers
         /// <param name="userName">Name of the user.</param>
         /// <param name="channel">The channel.</param>
         /// <param name="author">The author.</param>
+        /// <param name="mentionedUsers">The users mentioned in the message, as sent by Discord.</param>
         /// <returns>The parsed message.</returns>
-        public string HandleMessage(string message, string userName, ISocketMessageChannel channel, SocketUser author)
+        public string HandleMessage(string message, string userName, ISocketMessageChannel channel, SocketUser author, IReadOnlyCollection<SocketUser> mentionedUsers = null)
         {
             message = Regex.Replace(message, @"\r\n?|\n", " ");
             StringBuilder returnMessage = new StringBuilder();
@@ -216,7 +217,7 @@ namespace StatBot.Handlers
                     }
                     else if (userMentionExpression.IsMatch(messagePart))
                     {
-                        returnMessage.Append($"{ResolveUserMention(messagePart).Replace(' ', '_')} ");
+                        returnMessage.Append($"{ResolveUserMention(messagePart, mentionedUsers).Replace(' ', '_')} ");
                     }
                     else if (channelExpression.IsMatch(messagePart))
                     {
@@ -236,8 +237,9 @@ namespace StatBot.Handlers
         /// Resolves the user mention.
         /// </summary>
         /// <param name="messagePart">The part of the message that needs to be resolved.</param>
+        /// <param name="mentionedUsers">The users mentioned in the message, as sent by Discord.</param>
         /// <returns>A StringBuilder with the resolved username.</returns>
-        private StringBuilder ResolveUserMention(string messagePart)
+        private StringBuilder ResolveUserMention(string messagePart, IReadOnlyCollection<SocketUser> mentionedUsers)
         {
             StringBuilder returnMessage = new StringBuilder();
             int leadingCharacters = messagePart.TakeWhile(c => c == '<').Count();
@@ -262,9 +264,13 @@ namespace StatBot.Handlers
                 substr = messagePartPart[0].Substring(2 + leadingCharacters, messagePart.Length - minusLength - leadingCharacters);
                 ulong.TryParse(substr, out userId);
             }
-            if (userId > 0)
+            // The mention payload is the reliable source: without the GuildMembers intent the
+            // user cache only holds users seen since startup.
+            SocketUser user = userId > 0
+                ? mentionedUsers?.FirstOrDefault(x => x.Id == userId) ?? ResolveUser(userId)
+                : null;
+            if (user != null)
             {
-                SocketUser user = ResolveUser(userId);
                 returnMessage.Append($"@{user.Username}#{user.Discriminator}");
                 if (messagePartPart.Length >= 2 &&
                 !string.IsNullOrEmpty(messagePartPart[1]))
